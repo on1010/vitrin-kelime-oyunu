@@ -182,8 +182,8 @@ class Bot(BaseBot):
             self.current_hint = ""
             self.revealed_letters = []
             
-            # 20 saniye bekle, sonra yeni kelimeye geç
-            await asyncio.sleep(20)
+            # 8 saniye bekle, sonra yeni kelimeye geç
+            await asyncio.sleep(8)
             await self.start_new_round()
 
         # Moderatör chat özelliği kaldırıldı (her mesajı tekrarlıyordu)
@@ -230,13 +230,13 @@ class Bot(BaseBot):
 
         self.game_active = True
         await self.highrise.chat("🎮 ✨ YENİ OYUN BAŞLIYOR ✨")
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
         await self.highrise.chat("🚀 Hazır mısınız? 3...")
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
         await self.highrise.chat("🔥 2...")
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
         await self.highrise.chat("⚡ 1...")
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
         await self.start_new_round()
 
     async def start_new_round(self):
@@ -261,7 +261,7 @@ class Bot(BaseBot):
         word_display = "_" * len(self.current_word)
 
         await self.highrise.chat(f"💡 İpucu: {self.current_hint}")
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
         await self.highrise.chat(f"🔤 Kelime: {' '.join(word_display)} ({len(self.current_word)} harf)")
 
         # İpucu sistemini başlat
@@ -276,7 +276,7 @@ class Bot(BaseBot):
             max_hints = len(self.current_word) - 1
             
             while hint_count < max_hints and self.game_active:
-                await asyncio.sleep(10)
+                await asyncio.sleep(6)
 
                 if not self.game_active:
                     break
@@ -302,7 +302,7 @@ class Bot(BaseBot):
 
             # Son 1 harf kaldığında kimse bilemezse sonraki soruya geç
             if self.game_active:
-                await asyncio.sleep(15)
+                await asyncio.sleep(8)
                 if self.game_active:
                     correct_word = self.current_word.upper()
                     self.game_active = False  # Oyunu durdur
@@ -313,7 +313,7 @@ class Bot(BaseBot):
                     self.revealed_letters = []
                     
                     await self.highrise.chat(f"❌ Kimse bulamadı! ✅ Cevap: {correct_word}")
-                    await asyncio.sleep(20)
+                    await asyncio.sleep(8)
                     await self.start_new_round()
 
         except asyncio.CancelledError:
@@ -327,7 +327,7 @@ class Bot(BaseBot):
             self.hint_task.cancel()
             self.hint_task = None
         await self.highrise.chat("🛑 Oyun durduruldu!")
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
         await self.show_leaderboard()
 
     async def show_leaderboard(self):
