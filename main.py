@@ -77,7 +77,7 @@ class Bot(BaseBot):
         await asyncio.sleep(1)
         await self.highrise.chat(f"📚 {len(self.words_database)} soru hazır!")
         await asyncio.sleep(1)
-        await self.highrise.chat("🎯 KOMUTLAR: !oyun, !skor, !skorlar, !stop")
+        await self.highrise.chat("🎯 KOMUTLAR: !oyun, !skor, !skorlar, !stop, !gel")
         await asyncio.sleep(1)
         await self.highrise.chat("🏆 İlk 5'te yerini al, skorunu koru!")
         await asyncio.sleep(3)
@@ -136,27 +136,50 @@ class Bot(BaseBot):
             await self.show_leaderboard()
             return
 
+        # !gel komutu - bot teleport
+        if message == "!gel":
+            if await self.is_user_allowed(user):
+                try:
+                    # Kullanıcının pozisyonunu al
+                    room = await self.highrise.get_room()
+                    user_position = None
+                    for room_user, position in room.users:
+                        if room_user.id == user.id:
+                            user_position = position
+                            break
+                    
+                    if user_position:
+                        await self.highrise.teleport(self.highrise.my_id, user_position)
+                        await self.highrise.chat(f"✨ @{user.username} yanına ışınlandım!")
+                    else:
+                        await self.highrise.chat("❌ Pozisyonunuz algılanamadı!")
+                except Exception as e:
+                    await self.highrise.chat("❌ Işınlanma başarısız!")
+                    print(f"Teleport hatası: {e}")
+            else:
+                await self.highrise.chat("🔒 Sadece moderatörler beni çağırabilir!")
+            return
+
         # Doğru cevap kontrolü
         if self.game_active and message == self.current_word.lower():
-            # Oyunu durdur ve cevabı göster
+            # Oyunu durdur
             self.game_active = False
             if self.hint_task:
                 self.hint_task.cancel()
                 self.hint_task = None
             
-            # Mevcut oyun değişkenlerini temizle
-            correct_word = self.current_word.upper()
+            # Puan hesapla
+            self.user_scores[user.id]["score"] += 20
+            self.save_scores()
+            rank = self.get_user_rank(user.id)
+            
+            # Tek mesajda cevabı ve puanı göster
+            await self.highrise.chat(f"🎉 BRAVO @{user.username}! 📈 +20 puan! Toplam: {self.user_scores[user.id]['score']} (#{rank})")
+            
+            # Oyun değişkenlerini temizle
             self.current_word = ""
             self.current_hint = ""
             self.revealed_letters = []
-            
-            self.user_scores[user.id]["score"] += 20
-            self.save_scores()
-            
-            rank = self.get_user_rank(user.id)
-            await self.highrise.chat(f"🎉 BRAVO @{user.username}! ✨ Doğru: {correct_word}")
-            await asyncio.sleep(1)
-            await self.highrise.chat(f"📈 +20 puan! Toplam: {self.user_scores[user.id]['score']} (#{rank})")
             
             # 20 saniye bekle, sonra yeni kelimeye geç
             await asyncio.sleep(20)
@@ -286,17 +309,15 @@ class Bot(BaseBot):
             if self.game_active:
                 await asyncio.sleep(15)
                 if self.game_active:
-                    self.game_active = False  # Oyunu durdur
                     correct_word = self.current_word.upper()
+                    self.game_active = False  # Oyunu durdur
                     
                     # Oyun değişkenlerini temizle
                     self.current_word = ""
                     self.current_hint = ""
                     self.revealed_letters = []
                     
-                    await self.highrise.chat("❌ Kimse bulamadı!")
-                    await asyncio.sleep(1)
-                    await self.highrise.chat(f"✅ Cevap: {correct_word}")
+                    await self.highrise.chat(f"❌ Kimse bulamadı! ✅ Cevap: {correct_word}")
                     await asyncio.sleep(20)
                     await self.start_new_round()
 
