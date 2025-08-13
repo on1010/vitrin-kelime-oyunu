@@ -22,6 +22,7 @@ class Bot(BaseBot):
         self.hint_task = None
         self.words_database = []
         self.saved_positions = {}
+        self.current_question_index = 0  # Sıralı soru takibi
         self.load_questions()
         self.load_scores()
         self.load_positions()
@@ -149,6 +150,12 @@ class Bot(BaseBot):
             if message == "!skorreset":
                 await self.reset_all_scores()
                 return
+                
+            if message == "!sorubaşla":
+                self.current_question_index = 0
+                await self.highrise.chat("🔄 Sorular başa alındı! Yeni oyun başlatılıyor...")
+                await self.start_word_game()
+                return
 
         # Oyun komutları
         if message == "!oyun":
@@ -183,6 +190,7 @@ class Bot(BaseBot):
             await self.highrise.chat("📊 !skor - Kendi skorunu gör")
             await self.highrise.chat("🏆 !skorlar - Skor tablosunu gör")
             await self.highrise.chat("✨ !gel - Botu yanına çağır (Mod)")
+            await self.highrise.chat("🔄 !sorubaşla - Soruları başa al (Mod)")
             await asyncio.sleep(0.5)
             await self.highrise.chat("💡 Doğru tahmin: +20 puan!")
             return
@@ -309,19 +317,26 @@ class Bot(BaseBot):
             await self.highrise.chat("❌ Sorular bulunamadı!")
             return
 
-        # Random kelime seç (minimum 6 harf)
-        available_words = [w for w in self.words_database if len(w["kelime"]) >= 6]
-        if not available_words:
-            available_words = self.words_database
+        # Sıralı soru seçimi
+        if self.current_question_index >= len(self.words_database):
+            # Tüm sorular bittiyse başa dön
+            self.current_question_index = 0
+            await self.highrise.chat("🔄 Tüm sorular tamamlandı! Başa dönülüyor...")
+            await asyncio.sleep(2)
 
-        word_data = random.choice(available_words)
+        word_data = self.words_database[self.current_question_index]
         self.current_word = word_data["kelime"]
         self.current_hint = word_data["ipucu"]
         self.revealed_letters = []
+        
+        # Bir sonraki soru için index'i artır
+        self.current_question_index += 1
 
         # Başlangıç gösterimi
         word_display = "_" * len(self.current_word)
 
+        await self.highrise.chat(f"📝 Soru {self.current_question_index}/{len(self.words_database)}")
+        await asyncio.sleep(0.5)
         await self.highrise.chat(f"💡 İpucu: {self.current_hint}")
         await asyncio.sleep(0.5)
         await self.highrise.chat(f"🔤 Kelime: {' '.join(word_display)} ({len(self.current_word)} harf)")
