@@ -142,16 +142,23 @@ class Bot(BaseBot):
             self.game_active = False
             if self.hint_task:
                 self.hint_task.cancel()
+                self.hint_task = None
+            
+            # Mevcut oyun değişkenlerini temizle
+            correct_word = self.current_word.upper()
+            self.current_word = ""
+            self.current_hint = ""
+            self.revealed_letters = []
             
             self.user_scores[user.id]["score"] += 20
             self.save_scores()
             
             rank = self.get_user_rank(user.id)
-            await self.highrise.chat(f"🎉 BRAVO @{user.username}! ✨ Doğru: {self.current_word.upper()}")
+            await self.highrise.chat(f"🎉 BRAVO @{user.username}! ✨ Doğru: {correct_word}")
             await asyncio.sleep(1)
             await self.highrise.chat(f"📈 +20 puan! Toplam: {self.user_scores[user.id]['score']} (#{rank})")
             
-            # 20 saniye bekle, sonra yeni kelimeye geç (cevap tekrarı olmadan)
+            # 20 saniye bekle, sonra yeni kelimeye geç
             await asyncio.sleep(20)
             await self.start_new_round()
 
@@ -280,9 +287,16 @@ class Bot(BaseBot):
                 await asyncio.sleep(15)
                 if self.game_active:
                     self.game_active = False  # Oyunu durdur
+                    correct_word = self.current_word.upper()
+                    
+                    # Oyun değişkenlerini temizle
+                    self.current_word = ""
+                    self.current_hint = ""
+                    self.revealed_letters = []
+                    
                     await self.highrise.chat("❌ Kimse bulamadı!")
                     await asyncio.sleep(1)
-                    await self.highrise.chat(f"✅ Cevap: {self.current_word.upper()}")
+                    await self.highrise.chat(f"✅ Cevap: {correct_word}")
                     await asyncio.sleep(20)
                     await self.start_new_round()
 
