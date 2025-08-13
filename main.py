@@ -140,10 +140,11 @@ class Bot(BaseBot):
         if message == "!gel":
             if await self.is_user_allowed(user):
                 try:
-                    # Kullanıcının pozisyonunu al
-                    room = await self.highrise.get_room()
+                    # Direkt kullanıcının pozisyonuna teleport ol
+                    response = await self.highrise.get_room_users()
                     user_position = None
-                    for room_user, position in room.users:
+                    
+                    for room_user, position in response.content:
                         if room_user.id == user.id:
                             user_position = position
                             break
@@ -185,13 +186,7 @@ class Bot(BaseBot):
             await asyncio.sleep(20)
             await self.start_new_round()
 
-        # Moderatör chat özelliği
-        if await self.is_user_allowed(user) and message.startswith(''):
-            try:
-                xxx = message[0:]
-                await self.highrise.chat(xxx)
-            except:
-                print("error in chat")
+        # Moderatör chat özelliği kaldırıldı (her mesajı tekrarlıyordu)
 
     def get_user_rank(self, user_id):
         """Kullanıcının sırasını bul"""
@@ -360,12 +355,8 @@ class Bot(BaseBot):
         await self.highrise.chat(leaderboard_text)
 
     async def on_whisper(self, user: User, message: str) -> None:
-        if await self.is_user_allowed(user) and message.startswith(''):
-            try:
-                xxx = message[0:]
-                await self.highrise.chat(xxx)
-            except:
-                print("error in whisper")
+        # Whisper özelliği kaldırıldı (mesajları tekrarlıyordu)
+        pass
 
     async def is_user_allowed(self, user: User) -> bool:
         user_privileges = await self.highrise.get_room_privilege(user.id)
