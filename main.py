@@ -138,6 +138,11 @@ class Bot(BaseBot):
 
         # Doğru cevap kontrolü
         if self.game_active and message == self.current_word.lower():
+            # Oyunu durdur ve cevabı göster
+            self.game_active = False
+            if self.hint_task:
+                self.hint_task.cancel()
+            
             self.user_scores[user.id]["score"] += 20
             self.save_scores()
             
@@ -146,11 +151,7 @@ class Bot(BaseBot):
             await asyncio.sleep(1)
             await self.highrise.chat(f"📈 +20 puan! Toplam: {self.user_scores[user.id]['score']} (#{rank})")
             
-            # 20 saniye bekle, sonra yeni kelimeye geç
-            self.game_active = False
-            if self.hint_task:
-                self.hint_task.cancel()
-            
+            # 20 saniye bekle, sonra yeni kelimeye geç (cevap tekrarı olmadan)
             await asyncio.sleep(20)
             await self.start_new_round()
 
@@ -278,6 +279,7 @@ class Bot(BaseBot):
             if self.game_active:
                 await asyncio.sleep(15)
                 if self.game_active:
+                    self.game_active = False  # Oyunu durdur
                     await self.highrise.chat("❌ Kimse bulamadı!")
                     await asyncio.sleep(1)
                     await self.highrise.chat(f"✅ Cevap: {self.current_word.upper()}")
