@@ -67,13 +67,13 @@ class Bot(BaseBot):
             print(f"❌ Skorlar kaydedilirken hata: {e}")
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("🎮 Gelişmiş Kelime Oyunu Botu Başlatıldı!")
+        print("🎮 Vitrin Odası Kelime Oyunu Botu Başlatıldı!")
         print(f"📚 Toplam {len(self.words_database)} soru hazır!")
         
         await self.highrise.tg.create_task(self.highrise.teleport(
             session_metadata.user_id, Position(9.0, 0.25, 0.5, "FrontRight")))
         
-        await self.highrise.chat("🎮 ✨ GELİŞMİŞ KELİME OYUNU ✨ 🎮")
+        await self.highrise.chat("⏱️ ✨ KELİME OYUNU ✨ ⏱️")
         await asyncio.sleep(1)
         await self.highrise.chat(f"📚 {len(self.words_database)} soru hazır!")
         await asyncio.sleep(1)
@@ -84,7 +84,7 @@ class Bot(BaseBot):
         await self.start_word_game()
 
     async def on_user_join(self, user: User, position: Position | AnchorPosition) -> None:
-        await self.highrise.chat(f"🎉 Hoş geldin @{user.username}! Kelime oyununa katıl!")
+        await self.highrise.chat(f"🏆 Hoş geldin @{user.username}! Kelime oyununa katıl!")
         if user.id not in self.user_scores:
             self.user_scores[user.id] = {"score": 0, "username": user.username}
             self.save_scores()
@@ -381,7 +381,7 @@ class WebServer():
         t.start()
 
 class RunBot():
-    room_id = "675f21fcecbfd6b18c0474f3"
+    room_id = "685fe9208ab075915779c70e"
     bot_token = "1604c7f069901b0b24d5756cd67b6be77611988fe219731182a0a5e69c176482"
     bot_file = "main"
     bot_class = "Bot"
