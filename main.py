@@ -136,19 +136,16 @@ class Bot(BaseBot):
             return
 
         if message == "!yardım" or message == "!help":
-            await self.highrise.chat("🎮 KOMUTLAR 🎮")
-            await asyncio.sleep(0.3)
-            await self.highrise.chat("🎯 !oyun - Yeni oyun (Mod)")
-            await asyncio.sleep(0.3)
-            await self.highrise.chat("🛑 !stop - Oyunu durdur (Mod)")
-            await asyncio.sleep(0.3)
-            await self.highrise.chat("📊 !skor - Skorunu gör")
-            await asyncio.sleep(0.3)
-            await self.highrise.chat("🏆 !skorlar - Skor tablosu")
-            await asyncio.sleep(0.3)
-            await self.highrise.chat("✨ !gel - Botu çağır (Mod)")
-            await asyncio.sleep(0.3)
-            await self.highrise.chat("💡 Kelimeyi bil = +20 puan!")
+            help_text = "🎮 ═══ KOMUTLAR ═══ 🎮\n"
+            help_text += "🎯 !oyun - Yeni oyun başlat (Mod)\n"
+            help_text += "🛑 !stop - Oyunu durdur (Mod)\n"
+            help_text += "📊 !skor - Kendi skorunu gör\n"
+            help_text += "🏆 !skorlar - Skor tablosunu gör\n"
+            help_text += "✨ !gel - Botu yanına çağır (Mod)\n"
+            help_text += "❓ !yardım - Bu yardım mesajı\n"
+            help_text += "━━━━━━━━━━━━━━━━━━━━━━━\n"
+            help_text += "💡 Kelimeyi doğru tahmin et: +20 puan!"
+            await self.highrise.chat(help_text)
             return
 
         # !gel komutu - bot teleport
@@ -361,7 +358,8 @@ class Bot(BaseBot):
         
         for i, (user_id, data) in enumerate(sorted_users[:5]):
             emoji = rank_emojis[i] if i < 5 else f"{i+1}️⃣"
-            stars = "⭐" * min(data["score"] // 100, 5)  # Her 100 puan için bir yıldız
+            star_count = min(data["score"] // 100, 5)  # Her 100 puan için bir yıldız
+            stars = f"{star_count}X ⭐" if star_count > 0 else ""
             leaderboard_text += f"{emoji} @{data['username']}: {data['score']} puan {stars}\n"
         
         total_players = len([s for s in self.user_scores.values() if s["score"] > 0])
