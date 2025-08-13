@@ -4,7 +4,6 @@ from asyncio import run as arun
 from flask import Flask
 from threading import Thread
 from highrise.__main__ import *
-from emotes import*
 import random
 import asyncio
 import time
@@ -12,330 +11,253 @@ import time
 class Bot(BaseBot):
     def __init__(self):
         super().__init__()
-        self.emote_looping = False
-        self.user_emote_loops = {}
-        self.loop_task = None
-
-
+        self.current_word = ""
+        self.current_hint = ""
+        self.revealed_letters = []
+        self.game_active = False
+        self.user_scores = {}
+        self.hint_task = None
+        self.words_database = [
+            {"word": "kiraz", "hint": "Sakura ağacında yetişir, kırmızı renkli meyve"},
+            {"word": "güneş", "hint": "Gökyüzünde parlayan, ışık ve ısı veren yıldız"},
+            {"word": "deniz", "hint": "Tuzlu su kütlesi, balıkların yaşadığı yer"},
+            {"word": "kalem", "hint": "Yazı yazmak için kullanılan araç"},
+            {"word": "kitap", "hint": "Sayfaları olan, okumak için kullanılan nesne"},
+            {"word": "çiçek", "hint": "Bahçede yetişen, güzel kokan renkli bitki"},
+            {"word": "kuşlar", "hint": "Gökyüzünde uçan, kanatları olan canlılar"},
+            {"word": "mutluluk", "hint": "İnsanın içini ısıtan güzel duygu"},
+            {"word": "dostluk", "hint": "İnsanlar arasındaki güzel bağ"},
+            {"word": "sevgi", "hint": "Kalbin en güzel duygusu"},
+            {"word": "umut", "hint": "Geleceğe dair olumlu beklenti"},
+            {"word": "şarkı", "hint": "Müzikle birlikte söylenen sözler"},
+            {"word": "dans", "hint": "Müzik eşliğinde yapılan hareket"},
+            {"word": "yıldız", "hint": "Gecede gökyüzünde parlayan nokta"},
+            {"word": "rüzgar", "hint": "Havada hissedilen esinti"},
+            {"word": "yağmur", "hint": "Bulutlardan düşen su damlacıkları"},
+            {"word": "gökkuşağı", "hint": "Yağmur sonrası gökyüzünde görülen renkli ışık"},
+            {"word": "kelebek", "hint": "Renkli kanatları olan uçan böcek"},
+            {"word": "çilek", "hint": "Kırmızı renkli, tatlı küçük meyve"},
+            {"word": "balık", "hint": "Suda yaşayan, yüzgeçli canlı"},
+            {"word": "ağaç", "hint": "Toprağa kök salan, dalları olan büyük bitki"},
+            {"word": "çocuk", "hint": "Küçük yaştaki insan"},
+            {"word": "oyuncak", "hint": "Çocukların oynadığı eşya"},
+            {"word": "hediye", "hint": "Birine sevgiyle verilen armağan"},
+            {"word": "kahve", "hint": "Sabahları içilen sıcak içecek"},
+            {"word": "pasta", "hint": "Doğum günlerinde kesilen tatlı"},
+            {"word": "müzik", "hint": "Kulağa hoş gelen sesler bütünü"},
+            {"word": "resim", "hint": "Boyalarla kağıda çizilen sanat eseri"},
+            {"word": "hikaye", "hint": "Anlatılan kurgusal olay"},
+            {"word": "hayal", "hint": "Zihindeeki kurgusal düşünce"}
+        ]
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("hi im alive?")
+        print("Kelime oyunu botu başlatıldı!")
         await self.highrise.tg.create_task(self.highrise.teleport(
             session_metadata.user_id, Position(9.0, 0.25, 0.5, "FrontRight")))
-
-        if self.loop_task is None or self.loop_task.done():
-            self.loop_task = asyncio.create_task(self.emote_loop())
-              
-        # First location ranges
-        min_x1 = 5.5
-        max_x1 = 8.5
-        min_y1 = 0.25
-        max_y1 = 0.25
-        min_z1 = 2.5
-        max_z1 = 9.5
-
-        # Second location ranges
-        min_x2 = 11.5
-        max_x2 = 16.5
-        min_y2 = 11.0
-        max_y2 = 11.0
-        min_z2 = 1.5
-        max_z2 = 6.5
-     
-        while True:
-            try:
-                user_positions = (await self.highrise.get_room_users()).content
-                
-                emote_name = random.choice(list(secili_emote.keys()))
-                emote_info = secili_emote[emote_name]
-                emote_to_send = emote_info["value"]
-                emote_time = emote_info["time"]
-                
-                emote_tasks = []
-                for room_user, position in user_positions:
-                    if (
-                        min_x1 <= position.x <= max_x1 and
-                        min_y1 <= position.y <= max_y1 and
-                        min_z1 <= position.z <= max_z1
-                    ):
-                        emote_tasks.append(self.send_emote(emote_to_send, room_user.id))
-                    elif (
-                        min_x2 <= position.x <= max_x2 and
-                        min_y2 <= position.y <= max_y2 and
-                        min_z2 <= position.z <= max_z2
-                    ):
-                        emote_tasks.append(self.send_emote(emote_to_send, room_user.id))
-                    
-                await asyncio.gather(*emote_tasks)
-                await asyncio.sleep(emote_time)  
-            except Exception as e:
-                print(f"Error sending random emote: {e}")
-             
-
+        await self.highrise.chat("🎮 Kelime Oyunu Başladı! 🎮")
+        await self.highrise.chat("Komutlar: !oyun (oyun başlat), !skor (skorunu gör), !stop (oyunu durdur)")
+        await asyncio.sleep(3)
+        await self.start_word_game()
 
     async def on_user_join(self, user: User, position: Position | AnchorPosition) -> None:
-        try:
-            emote_name = random.choice(list(secili_emote.keys()))
-            emote_info = secili_emote[emote_name]
-            emote_to_send = emote_info["value"]
-            await self.send_emote(emote_to_send, user.id)
-        except Exception as e:
-            print(f"Error sending emote to user {user.id}: {e}")
-  
-    async def on_user_leave(self, user: User):
-    
-        user_id = user.id
-        if user_id in self.user_emote_loops:
-            await self.stop_emote_loop(user_id)
+        await self.highrise.chat(f"Hoş geldin {user.username}! Kelime oyununa katıl!")
+        if user.id not in self.user_scores:
+            self.user_scores[user.id] = {"score": 0, "username": user.username}
 
-  
+    async def on_user_leave(self, user: User):
+        print(f"{user.username} oyunu terk etti")
 
     async def on_chat(self, user: User, message: str) -> None:
-        """On a received room-wide chat."""     
-        message = message.strip().lower()
-        user_id = user.id
-      
-        if message.startswith("full"):
-            emote_name = message.replace("full", "").strip()
-            if user_id in self.user_emote_loops and self.user_emote_loops[user_id] == emote_name:
-                await self.stop_emote_loop(user_id)
-            else:
-                await self.start_emote_loop(user_id, emote_name)
-                
-        if message == "stop" or message == "dur" or message == "0":
-            if user_id in self.user_emote_loops:
-                await self.stop_emote_loop(user_id)
-                
-        if message == "ulti":
-            if user_id not in self.user_emote_loops:
-                await self.start_random_emote_loop(user_id)
-                
-        if message == "stop" or message == "dur":
-            if user_id in self.user_emote_loops:
-                if self.user_emote_loops[user_id] == "ulti":
-                    await self.stop_random_emote_loop(user_id)
-     
-
         message = message.strip().lower()
 
-        if "@" in message:
-            parts = message.split("@")
-            if len(parts) < 2:
-                return
+        # Initialize user if not exists
+        if user.id not in self.user_scores:
+            self.user_scores[user.id] = {"score": 0, "username": user.username}
 
-            emote_name = parts[0].strip()
-            target_username = parts[1].strip()
+        # Game commands
+        if message == "!oyun" and await self.is_user_allowed(user):
+            await self.start_word_game()
+            return
 
-            if emote_name in emote_mapping:
-                response = await self.highrise.get_room_users()
-                users = [content[0] for content in response.content]
-                usernames = [user.username.lower() for user in users]
+        if message == "!stop" and await self.is_user_allowed(user):
+            await self.stop_word_game()
+            return
 
-                if target_username not in usernames:
-                    return
+        if message == "!skor":
+            user_score = self.user_scores[user.id]["score"]
+            await self.highrise.chat(f"{user.username}: {user_score} puan")
+            return
 
-                user_id = next((u.id for u in users if u.username.lower() == target_username), None)
-                if not user_id:
-                    return
+        if message == "!skorlar" and await self.is_user_allowed(user):
+            await self.show_leaderboard()
+            return
 
-                await self.handle_emote_command(user.id, emote_name)
-                await self.handle_emote_command(user_id, emote_name)
+        # Check if guess is correct
+        if self.game_active and message == self.current_word.lower():
+            self.user_scores[user.id]["score"] += 20
+            await self.highrise.chat(f"🎉 Tebrikler {user.username}! Doğru cevap: {self.current_word.upper()}")
+            await self.highrise.chat(f"📈 +20 puan kazandın! Toplam puanın: {self.user_scores[user.id]['score']}")
+            await asyncio.sleep(2)
+            await self.start_new_round()
 
-
-        for emote_name, emote_info in emote_mapping.items():
-            if message.lower() == emote_name.lower():
-                try:
-                    emote_to_send = emote_info["value"]
-                    await self.highrise.send_emote(emote_to_send, user.id)
-                except Exception as e:
-                    print(f"Error sending emote: {e}")
-
-
-        if message.lower().startswith("all ") and await self.is_user_allowed(user):
-            emote_name = message.replace("all ", "").strip()
-            if emote_name in emote_mapping:
-                emote_to_send = emote_mapping[emote_name]["value"]
-                room_users = (await self.highrise.get_room_users()).content
-                tasks = []
-                for room_user, _ in room_users:
-                    tasks.append(self.highrise.send_emote(emote_to_send, room_user.id))
-                try:
-                    await asyncio.gather(*tasks)
-                except Exception as e:
-                    error_message = f"Error sending emotes: {e}"
-                    await self.highrise.send_whisper(user.id, error_message)
-            else:
-                await self.highrise.send_whisper(user.id, "Invalid emote name: {}".format(emote_name))
-    
-              
-        message = message.strip().lower()
-
-        try:
-            if message.lstrip().startswith(("cast")):
-                response = await self.highrise.get_room_users()
-                users = [content[0] for content in response.content]
-                usernames = [user.username.lower() for user in users]
-                parts = message[1:].split()
-                args = parts[1:]
-
-                if len(args) >= 1 and args[0][0] == "@" and args[0][1:].lower() in usernames:
-                    user_id = next((u.id for u in users if u.username.lower() == args[0][1:].lower()), None)
-
-                    if message.lower().startswith("cast"):
-                        await self.highrise.send_emote("emote-telekinesis", user.id)
-                        await self.highrise.send_emote("emote-gravity", user_id)
-        except Exception as e:
-            print(f"An error occurred: {e}")
-          
-        if message.startswith("dans") or message.startswith("dance"):
-            try:
-                emote_name = random.choice(list(secili_emote.keys()))
-                emote_to_send = secili_emote[emote_name]["value"]
-                await self.highrise.send_emote(emote_to_send, user.id)
-            except:
-                print("Dans emote gönderilirken bir hata oluştu.")
-
-
-#Numaralı emotlar numaralı emotlar
-  
-    async def handle_emote_command(self, user_id: str, emote_name: str) -> None:
-        if emote_name in emote_mapping:
-            emote_info = emote_mapping[emote_name]
-            emote_to_send = emote_info["value"]
-
-            try:
-                await self.highrise.send_emote(emote_to_send, user_id)
-            except Exception as e:
-                print(f"Error sending emote: {e}")
-
-
-    async def start_emote_loop(self, user_id: str, emote_name: str) -> None:
-        if emote_name in emote_mapping:
-            self.user_emote_loops[user_id] = emote_name
-            emote_info = emote_mapping[emote_name]
-            emote_to_send = emote_info["value"]
-            emote_time = emote_info["time"]
-
-            while self.user_emote_loops.get(user_id) == emote_name:
-                try:
-                    await self.highrise.send_emote(emote_to_send, user_id)
-                except Exception as e:
-                    if "Target user not in room" in str(e):
-                        print(f"{user_id} odada değil, emote gönderme durduruluyor.")
-                        break
-                await asyncio.sleep(emote_time)
-
-    async def stop_emote_loop(self, user_id: str) -> None:
-        if user_id in self.user_emote_loops:
-            self.user_emote_loops.pop(user_id)
-
-
-  
-#paid emotes paid emotes paid emote
-  
-    async def emote_loop(self):
-        while True:
-            try:
-                emote_name = random.choice(list(paid_emotes.keys()))
-                emote_to_send = paid_emotes[emote_name]["value"]
-                emote_time = paid_emotes[emote_name]["time"]
-                
-                await self.highrise.send_emote(emote_id=emote_to_send)
-                await asyncio.sleep(emote_time)
-            except Exception as e:
-                print("Error sending emote:", e) 
-
-
-  
-#Ulti Ulti Ulti Ulti Ulti Ulti Ulti
-
-    async def start_random_emote_loop(self, user_id: str) -> None:
-        self.user_emote_loops[user_id] = "ulti"
-        while self.user_emote_loops.get(user_id) == "ulti":
-            try:
-                emote_name = random.choice(list(secili_emote.keys()))
-                emote_info = secili_emote[emote_name]
-                emote_to_send = emote_info["value"]
-                emote_time = emote_info["time"]
-                await self.highrise.send_emote(emote_to_send, user_id)
-                await asyncio.sleep(emote_time)
-            except Exception as e:
-                print(f"Error sending random emote: {e}")
-
-    async def stop_random_emote_loop(self, user_id: str) -> None:
-        if user_id in self.user_emote_loops:
-            del self.user_emote_loops[user_id]
-
-
-
-  #Genel Genel Genel Genel Genel
-
-    async def send_emote(self, emote_to_send: str, user_id: str) -> None:
-        await self.highrise.send_emote(emote_to_send, user_id)
-      
-    async def on_user_move(self, user: User, pos: Position) -> None:
-        """On a user moving in the room."""
-        print(f"{user.username} moved to {pos}")
-
-    async def on_whisper(self, user: User, message: str) -> None:
-        """On a received room whisper."""
+        # Moderator chat functionality
         if await self.is_user_allowed(user) and message.startswith(''):
             try:
                 xxx = message[0:]
                 await self.highrise.chat(xxx)
             except:
-                print("error 3")
-  
+                print("error in chat")
+
+    async def start_word_game(self):
+        if self.game_active:
+            await self.highrise.chat("⚠️ Oyun zaten devam ediyor!")
+            return
+
+        self.game_active = True
+        await self.highrise.chat("🎮 Yeni kelime oyunu başlıyor! Hazır olun...")
+        await asyncio.sleep(2)
+        await self.start_new_round()
+
+    async def start_new_round(self):
+        if not self.game_active:
+            return
+
+        # Select random word
+        word_data = random.choice(self.words_database)
+        self.current_word = word_data["word"]
+        self.current_hint = word_data["hint"]
+        self.revealed_letters = []
+
+        # Create initial display
+        word_display = "_" * len(self.current_word)
+
+        await self.highrise.chat(f"📝 İpucu: {self.current_hint}")
+        await self.highrise.chat(f"🔤 Kelime: {' '.join(word_display)} ({len(self.current_word)} harf)")
+
+        # Start hint task
+        if self.hint_task:
+            self.hint_task.cancel()
+        self.hint_task = asyncio.create_task(self.give_hints())
+
+    async def give_hints(self):
+        try:
+            hint_count = 0
+            max_hints = min(3, len(self.current_word) - 1)  # Maximum 3 hints or word length - 1
+
+            while hint_count < max_hints and self.game_active:
+                await asyncio.sleep(5)  # Wait 5 seconds
+
+                if not self.game_active:
+                    break
+
+                # Select a random position that hasn't been revealed
+                available_positions = [i for i in range(len(self.current_word)) 
+                                     if i not in self.revealed_letters]
+
+                if available_positions:
+                    pos = random.choice(available_positions)
+                    self.revealed_letters.append(pos)
+
+                    # Create word display with revealed letters
+                    word_display = ""
+                    for i, letter in enumerate(self.current_word):
+                        if i in self.revealed_letters:
+                            word_display += letter
+                        else:
+                            word_display += "_"
+
+                    await self.highrise.chat(f"💡 İpucu {hint_count + 1}: {' '.join(word_display)}")
+                    hint_count += 1
+
+            # If no one guessed after all hints, reveal answer
+            if self.game_active:
+                await asyncio.sleep(5)
+                if self.game_active:  # Check again in case it was stopped
+                    await self.highrise.chat(f"⏰ Süre doldu! Cevap: {self.current_word.upper()}")
+                    await asyncio.sleep(3)
+                    await self.start_new_round()
+
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            print(f"Error in hint system: {e}")
+
+    async def stop_word_game(self):
+        self.game_active = False
+        if self.hint_task:
+            self.hint_task.cancel()
+            self.hint_task = None
+        await self.highrise.chat("🛑 Kelime oyunu durduruldu!")
+        await self.show_leaderboard()
+
+    async def show_leaderboard(self):
+        if not self.user_scores:
+            await self.highrise.chat("📊 Henüz kimse puan kazanmadı!")
+            return
+
+        # Sort users by score
+        sorted_users = sorted(self.user_scores.items(), 
+                            key=lambda x: x[1]["score"], reverse=True)
+
+        await self.highrise.chat("🏆 SKOR TABLOSU 🏆")
+        for i, (user_id, data) in enumerate(sorted_users[:5]):  # Top 5
+            position_emoji = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"][i]
+            await self.highrise.chat(f"{position_emoji} {data['username']}: {data['score']} puan")
+
+    async def on_whisper(self, user: User, message: str) -> None:
+        if await self.is_user_allowed(user) and message.startswith(''):
+            try:
+                xxx = message[0:]
+                await self.highrise.chat(xxx)
+            except:
+                print("error in whisper")
+
     async def is_user_allowed(self, user: User) -> bool:
         user_privileges = await self.highrise.get_room_privilege(user.id)
         return user_privileges.moderator or user.username in ["Atekinz", ""]
 
-
-  
     async def run(self, room_id, token) -> None:
         await __main__.main(self, room_id, token)
+
 class WebServer():
+    def __init__(self):
+        self.app = Flask(__name__)
 
-  def __init__(self):
-    self.app = Flask(__name__)
+        @self.app.route('/')
+        def index() -> str:
+            return "Word Game Bot Alive"
 
-    @self.app.route('/')
-    def index() -> str:
-      return "Alive"
+    def run(self) -> None:
+        self.app.run(host='0.0.0.0', port=8080)
 
-  def run(self) -> None:
-    self.app.run(host='0.0.0.0', port=8080)
+    def keep_alive(self):
+        t = Thread(target=self.run)
+        t.start()
 
-  def keep_alive(self):
-    t = Thread(target=self.run)
-    t.start()
-    
 class RunBot():
-  room_id = "65b0c62e2ba06c8f8a095355"
-  bot_token = "b350dbbbb343dcff86546906b33952416ce80933bea0419d45240756e45cc5dc"
-  bot_file = "main"
-  bot_class = "Bot"
+    room_id = "65b0c62e2ba06c8f8a095355"
+    bot_token = "b350dbbbb343dcff86546906b33952416ce80933bea0419d45240756e45cc5dc"
+    bot_file = "main"
+    bot_class = "Bot"
 
-  def __init__(self) -> None:
-    self.definitions = [
-        BotDefinition(
-            getattr(import_module(self.bot_file), self.bot_class)(),
-            self.room_id, self.bot_token)
-    ] 
+    def __init__(self) -> None:
+        self.definitions = [
+            BotDefinition(
+                getattr(import_module(self.bot_file), self.bot_class)(),
+                self.room_id, self.bot_token)
+        ] 
 
-  def run_loop(self) -> None:
-    while True:
-      try:
-        arun(main(self.definitions)) 
-      except Exception as e:
-        import traceback
-        print("Caught an exception:")
-        traceback.print_exc()
-        time.sleep(1)
-        continue
-
+    def run_loop(self) -> None:
+        while True:
+            try:
+                arun(main(self.definitions)) 
+            except Exception as e:
+                import traceback
+                print("Caught an exception:")
+                traceback.print_exc()
+                time.sleep(1)
+                continue
 
 if __name__ == "__main__":
-  WebServer().keep_alive()
-
-  RunBot().run_loop()
+    WebServer().keep_alive()
+    RunBot().run_loop()
