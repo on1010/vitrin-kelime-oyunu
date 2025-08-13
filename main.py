@@ -21,8 +21,10 @@ class Bot(BaseBot):
         self.user_scores = {}
         self.hint_task = None
         self.words_database = []
+        self.saved_positions = {}
         self.load_questions()
         self.load_scores()
+        self.load_positions()
 
     def load_questions(self):
         """JSON dosyasından soruları yükle"""
@@ -66,12 +68,50 @@ class Bot(BaseBot):
         except Exception as e:
             print(f"❌ Skorlar kaydedilirken hata: {e}")
 
+    def load_positions(self):
+        """Kayıtlı pozisyonları yükle"""
+        try:
+            with open('pozisyonlar.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                self.saved_positions = data.get('pozisyonlar', {})
+            print(f"✅ {len(self.saved_positions)} pozisyon yüklendi!")
+        except FileNotFoundError:
+            print("📍 Yeni pozisyon dosyası oluşturulacak")
+            self.saved_positions = {}
+        except Exception as e:
+            print(f"❌ Pozisyonlar yüklenirken hata: {e}")
+            self.saved_positions = {}
+
+    def save_positions(self):
+        """Pozisyonları JSON dosyasına kaydet"""
+        try:
+            data = {"pozisyonlar": self.saved_positions}
+            with open('pozisyonlar.json', 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"❌ Pozisyonlar kaydedilirken hata: {e}")
+
     async def on_start(self, session_metadata: SessionMetadata) -> None:
         print("🎮 Vitrin Odası Kelime Oyunu Botu Başlatıldı!")
         print(f"📚 Toplam {len(self.words_database)} soru hazır!")
         
-        await self.highrise.tg.create_task(self.highrise.teleport(
-            session_metadata.user_id, Position(9.0, 0.25, 0.5, "FrontRight")))
+        # Kayıtlı pozisyon varsa oraya git, yoksa varsayılan pozisyona
+        if self.saved_positions:
+            # En son kaydedilen pozisyonu kullan
+            last_position = list(self.saved_positions.values())[-1]
+            saved_pos = Position(
+                last_position["x"], 
+                last_position["y"], 
+                last_position["z"], 
+                last_position["facing"]
+            )
+            await self.highrise.tg.create_task(self.highrise.teleport(
+                session_metadata.user_id, saved_pos))
+            print(f"📍 Kayıtlı pozisyona ışınlandım!")
+        else:
+            await self.highrise.tg.create_task(self.highrise.teleport(
+                session_metadata.user_id, Position(9.0, 0.25, 0.5, "FrontRight")))
+            print("📍 Varsayılan pozisyona ışınlandım!")
         
         await self.highrise.chat("⏱️ ✨ KELİME OYUNU ✨ ⏱️")
         await asyncio.sleep(1)
@@ -152,7 +192,7 @@ class Bot(BaseBot):
         if message == "!gel":
             if await self.is_user_allowed(user):
                 try:
-                    # Direkt kullanıcının pozisyonuna teleport ol
+                    # Kullanıcının mevcut pozisyonunu al ve kaydet
                     response = await self.highrise.get_room_users()
                     user_position = None
                     
@@ -162,8 +202,19 @@ class Bot(BaseBot):
                             break
                     
                     if user_position:
+                        # Pozisyonu kaydet
+                        self.saved_positions[str(user.id)] = {
+                            "x": user_position.x,
+                            "y": user_position.y,
+                            "z": user_position.z,
+                            "facing": user_position.facing,
+                            "username": user.username
+                        }
+                        self.save_positions()
+                        
+                        # Bot'u kullanıcının yanına ışınla
                         await self.highrise.teleport(self.highrise.my_id, user_position)
-                        await self.highrise.chat(f"✨ @{user.username} yanına ışınlandım!")
+                        await self.highrise.chat(f"✨ @{user.username} yanına ışınlandım ve pozisyonunu kaydettim!")
                     else:
                         await self.highrise.chat("❌ Pozisyonunuz algılanamadı!")
                 except Exception as e:

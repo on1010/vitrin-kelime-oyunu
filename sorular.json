@@ -552,7 +552,7 @@
     {"kelime": "karakter", "ipucu": "Kişinin iç yapısı"},
     {"kelime": "kişilik", "ipucu": "Bireyin özellikleri"},
     {"kelime": "mizaç", "ipucu": "Doğal yapı"},
-  {"kelime": "anafora", "ipucu": "Cümle başlarında aynı kelimenin tekrarlanması sanatı"},
+    {"kelime": "anafora", "ipucu": "Cümle başlarında aynı kelimenin tekrarlanması sanatı"},
   {"kelime": "permafrost", "ipucu": "Yıl boyunca donmuş halde kalan toprak tabakası"},
   {"kelime": "paradoks", "ipucu": "Mantığa aykırı gibi görünen ama doğru olabilen ifade"},
   {"kelime": "fraktal", "ipucu": "Kendi kendine benzeyen geometrik şekil"},
