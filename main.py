@@ -234,11 +234,9 @@ class Bot(BaseBot):
         # Başlangıç gösterimi
         word_display = "_" * len(self.current_word)
 
-        await self.highrise.chat("─" * 35)
         await self.highrise.chat(f"💡 İpucu: {self.current_hint}")
         await asyncio.sleep(1)
         await self.highrise.chat(f"🔤 Kelime: {' '.join(word_display)} ({len(self.current_word)} harf)")
-        await self.highrise.chat("─" * 35)
 
         # İpucu sistemini başlat
         if self.hint_task:
@@ -248,7 +246,8 @@ class Bot(BaseBot):
     async def give_hints(self):
         try:
             hint_count = 0
-            max_hints = min(4, len(self.current_word) - 2)
+            # Sadece 1 harf gizli kalana kadar devam et
+            max_hints = len(self.current_word) - 1
             
             while hint_count < max_hints and self.game_active:
                 await asyncio.sleep(10)
@@ -275,11 +274,11 @@ class Bot(BaseBot):
                     await self.highrise.chat(f"💡 İpucu {hint_count + 1}: {' '.join(word_display)}")
                     hint_count += 1
 
-            # Hiç kimse bulamazsa cevabı ver
+            # Son 1 harf kaldığında kimse bilemezse sonraki soruya geç
             if self.game_active:
                 await asyncio.sleep(15)
                 if self.game_active:
-                    await self.highrise.chat("⏰ Süre doldu!")
+                    await self.highrise.chat("❌ Kimse bulamadı!")
                     await asyncio.sleep(1)
                     await self.highrise.chat(f"✅ Cevap: {self.current_word.upper()}")
                     await asyncio.sleep(20)
