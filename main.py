@@ -84,7 +84,6 @@ class Bot(BaseBot):
         await self.start_word_game()
 
     async def on_user_join(self, user: User, position: Position | AnchorPosition) -> None:
-        await self.highrise.chat(f"🏆 Hoş geldin @{user.username}! Kelime oyununa katıl!")
         if user.id not in self.user_scores:
             self.user_scores[user.id] = {"score": 0, "username": user.username}
             self.save_scores()
@@ -134,6 +133,19 @@ class Bot(BaseBot):
 
         if message == "!skorlar":
             await self.show_leaderboard()
+            return
+
+        if message == "!yardım" or message == "!help":
+            help_text = "🎮 ═══ KOMUTLAR ═══ 🎮\n"
+            help_text += "🎯 !oyun - Yeni oyun başlat (Mod)\n"
+            help_text += "🛑 !stop - Oyunu durdur (Mod)\n"
+            help_text += "📊 !skor - Kendi skorunu gör\n"
+            help_text += "🏆 !skorlar - Skor tablosunu gör\n"
+            help_text += "✨ !gel - Botu yanına çağır (Mod)\n"
+            help_text += "❓ !yardım - Bu yardım mesajı\n"
+            help_text += "━━━━━━━━━━━━━━━━━━━━━━━\n"
+            help_text += "💡 Kelimeyi doğru tahmin et: +20 puan!"
+            await self.highrise.chat(help_text)
             return
 
         # !gel komutu - bot teleport
