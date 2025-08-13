@@ -1,3 +1,4 @@
+
 from highrise import *
 from highrise.models import *
 from asyncio import run as arun
@@ -7,6 +8,8 @@ from highrise.__main__ import *
 import random
 import asyncio
 import time
+import json
+import os
 
 class Bot(BaseBot):
     def __init__(self):
@@ -17,90 +20,143 @@ class Bot(BaseBot):
         self.game_active = False
         self.user_scores = {}
         self.hint_task = None
-        self.words_database = [
-            {"word": "kiraz", "hint": "Sakura ağacında yetişir, kırmızı renkli meyve"},
-            {"word": "güneş", "hint": "Gökyüzünde parlayan, ışık ve ısı veren yıldız"},
-            {"word": "deniz", "hint": "Tuzlu su kütlesi, balıkların yaşadığı yer"},
-            {"word": "kalem", "hint": "Yazı yazmak için kullanılan araç"},
-            {"word": "kitap", "hint": "Sayfaları olan, okumak için kullanılan nesne"},
-            {"word": "çiçek", "hint": "Bahçede yetişen, güzel kokan renkli bitki"},
-            {"word": "kuşlar", "hint": "Gökyüzünde uçan, kanatları olan canlılar"},
-            {"word": "mutluluk", "hint": "İnsanın içini ısıtan güzel duygu"},
-            {"word": "dostluk", "hint": "İnsanlar arasındaki güzel bağ"},
-            {"word": "sevgi", "hint": "Kalbin en güzel duygusu"},
-            {"word": "umut", "hint": "Geleceğe dair olumlu beklenti"},
-            {"word": "şarkı", "hint": "Müzikle birlikte söylenen sözler"},
-            {"word": "dans", "hint": "Müzik eşliğinde yapılan hareket"},
-            {"word": "yıldız", "hint": "Gecede gökyüzünde parlayan nokta"},
-            {"word": "rüzgar", "hint": "Havada hissedilen esinti"},
-            {"word": "yağmur", "hint": "Bulutlardan düşen su damlacıkları"},
-            {"word": "gökkuşağı", "hint": "Yağmur sonrası gökyüzünde görülen renkli ışık"},
-            {"word": "kelebek", "hint": "Renkli kanatları olan uçan böcek"},
-            {"word": "çilek", "hint": "Kırmızı renkli, tatlı küçük meyve"},
-            {"word": "balık", "hint": "Suda yaşayan, yüzgeçli canlı"},
-            {"word": "ağaç", "hint": "Toprağa kök salan, dalları olan büyük bitki"},
-            {"word": "çocuk", "hint": "Küçük yaştaki insan"},
-            {"word": "oyuncak", "hint": "Çocukların oynadığı eşya"},
-            {"word": "hediye", "hint": "Birine sevgiyle verilen armağan"},
-            {"word": "kahve", "hint": "Sabahları içilen sıcak içecek"},
-            {"word": "pasta", "hint": "Doğum günlerinde kesilen tatlı"},
-            {"word": "müzik", "hint": "Kulağa hoş gelen sesler bütünü"},
-            {"word": "resim", "hint": "Boyalarla kağıda çizilen sanat eseri"},
-            {"word": "hikaye", "hint": "Anlatılan kurgusal olay"},
-            {"word": "hayal", "hint": "Zihindeeki kurgusal düşünce"}
-        ]
+        self.words_database = []
+        self.load_questions()
+        self.load_scores()
+
+    def load_questions(self):
+        """JSON dosyasından soruları yükle"""
+        try:
+            with open('sorular.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                self.words_database = data.get('sorular', [])
+            print(f"✅ {len(self.words_database)} soru yüklendi!")
+        except FileNotFoundError:
+            print("❌ sorular.json dosyası bulunamadı!")
+            self.words_database = [
+                {"kelime": "test", "ipucu": "Bu bir test kelimesidir"}
+            ]
+        except Exception as e:
+            print(f"❌ Sorular yüklenirken hata: {e}")
+
+    def load_scores(self):
+        """JSON dosyasından skorları yükle"""
+        try:
+            with open('skorlar.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                skorlar = data.get('skorlar', {})
+                # String ID'leri integer'a çevir
+                self.user_scores = {int(k) if k.isdigit() else k: v for k, v in skorlar.items()}
+            print(f"✅ {len(self.user_scores)} kullanıcı skoru yüklendi!")
+        except FileNotFoundError:
+            print("📊 Yeni skor dosyası oluşturulacak")
+            self.user_scores = {}
+        except Exception as e:
+            print(f"❌ Skorlar yüklenirken hata: {e}")
+            self.user_scores = {}
+
+    def save_scores(self):
+        """Skorları JSON dosyasına kaydet"""
+        try:
+            # Integer ID'leri string'e çevir (JSON uyumluluğu için)
+            skorlar_str = {str(k): v for k, v in self.user_scores.items()}
+            data = {"skorlar": skorlar_str}
+            with open('skorlar.json', 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"❌ Skorlar kaydedilirken hata: {e}")
 
     async def on_start(self, session_metadata: SessionMetadata) -> None:
-        print("Kelime oyunu botu başlatıldı!")
+        print("🎮 Gelişmiş Kelime Oyunu Botu Başlatıldı!")
+        print(f"📚 Toplam {len(self.words_database)} soru hazır!")
+        
         await self.highrise.tg.create_task(self.highrise.teleport(
             session_metadata.user_id, Position(9.0, 0.25, 0.5, "FrontRight")))
-        await self.highrise.chat("🎮 Kelime Oyunu Başladı! 🎮")
-        await self.highrise.chat("Komutlar: !oyun (oyun başlat), !skor (skorunu gör), !stop (oyunu durdur)")
+        
+        await self.highrise.chat("🎮 ✨ GELİŞMİŞ KELİME OYUNU ✨ 🎮")
+        await asyncio.sleep(1)
+        await self.highrise.chat(f"📚 {len(self.words_database)} soru hazır!")
+        await asyncio.sleep(1)
+        await self.highrise.chat("🎯 KOMUTLAR: !oyun, !skor, !skorlar, !stop")
+        await asyncio.sleep(1)
+        await self.highrise.chat("🏆 İlk 5'te yerini al, skorunu koru!")
         await asyncio.sleep(3)
         await self.start_word_game()
 
     async def on_user_join(self, user: User, position: Position | AnchorPosition) -> None:
-        await self.highrise.chat(f"Hoş geldin {user.username}! Kelime oyununa katıl!")
+        await self.highrise.chat(f"🎉 Hoş geldin {user.username}! Kelime oyununa katıl!")
         if user.id not in self.user_scores:
             self.user_scores[user.id] = {"score": 0, "username": user.username}
+            self.save_scores()
 
     async def on_user_leave(self, user: User):
-        print(f"{user.username} oyunu terk etti")
+        print(f"👋 {user.username} oyunu terk etti")
 
     async def on_chat(self, user: User, message: str) -> None:
         message = message.strip().lower()
 
-        # Initialize user if not exists
+        # Kullanıcı skoru başlat
         if user.id not in self.user_scores:
             self.user_scores[user.id] = {"score": 0, "username": user.username}
+            self.save_scores()
 
-        # Game commands
-        if message == "!oyun" and await self.is_user_allowed(user):
-            await self.start_word_game()
+        # Moderatör komutları
+        if await self.is_user_allowed(user):
+            if message.startswith("!skorsıfırla "):
+                target_username = message.split(" ", 1)[1].replace("@", "")
+                await self.reset_user_score(target_username)
+                return
+            
+            if message == "!skorreset":
+                await self.reset_all_scores()
+                return
+
+        # Oyun komutları
+        if message == "!oyun":
+            if await self.is_user_allowed(user):
+                await self.start_word_game()
+            else:
+                await self.highrise.chat("🔒 Sadece moderatörler oyun başlatabilir!")
             return
 
-        if message == "!stop" and await self.is_user_allowed(user):
-            await self.stop_word_game()
+        if message == "!stop":
+            if await self.is_user_allowed(user):
+                await self.stop_word_game()
+            else:
+                await self.highrise.chat("🔒 Sadece moderatörler oyunu durdurabilir!")
             return
 
         if message == "!skor":
             user_score = self.user_scores[user.id]["score"]
-            await self.highrise.chat(f"{user.username}: {user_score} puan")
+            rank = self.get_user_rank(user.id)
+            await self.highrise.chat(f"📊 {user.username}: {user_score} puan (#{rank})")
             return
 
-        if message == "!skorlar" and await self.is_user_allowed(user):
+        if message == "!skorlar":
             await self.show_leaderboard()
             return
 
-        # Check if guess is correct
+        # Doğru cevap kontrolü
         if self.game_active and message == self.current_word.lower():
             self.user_scores[user.id]["score"] += 20
-            await self.highrise.chat(f"🎉 Tebrikler {user.username}! Doğru cevap: {self.current_word.upper()}")
-            await self.highrise.chat(f"📈 +20 puan kazandın! Toplam puanın: {self.user_scores[user.id]['score']}")
-            await asyncio.sleep(2)
+            self.save_scores()
+            
+            rank = self.get_user_rank(user.id)
+            await self.highrise.chat(f"🎉 BRAVO {user.username}! ✨")
+            await asyncio.sleep(0.5)
+            await self.highrise.chat(f"✅ Doğru: {self.current_word.upper()}")
+            await asyncio.sleep(0.5)
+            await self.highrise.chat(f"📈 +20 puan! Toplam: {self.user_scores[user.id]['score']} (#{rank})")
+            
+            # 15 saniye bekle, sonra yeni kelimeye geç
+            self.game_active = False
+            if self.hint_task:
+                self.hint_task.cancel()
+            
+            await asyncio.sleep(15)
             await self.start_new_round()
 
-        # Moderator chat functionality
+        # Moderatör chat özelliği
         if await self.is_user_allowed(user) and message.startswith(''):
             try:
                 xxx = message[0:]
@@ -108,33 +164,87 @@ class Bot(BaseBot):
             except:
                 print("error in chat")
 
+    def get_user_rank(self, user_id):
+        """Kullanıcının sırasını bul"""
+        sorted_users = sorted(self.user_scores.items(), 
+                            key=lambda x: x[1]["score"], reverse=True)
+        for i, (uid, _) in enumerate(sorted_users, 1):
+            if uid == user_id:
+                return i
+        return len(sorted_users)
+
+    async def reset_user_score(self, username):
+        """Belirli kullanıcının skorunu sıfırla"""
+        found = False
+        for user_id, data in self.user_scores.items():
+            if data["username"].lower() == username.lower():
+                data["score"] = 0
+                found = True
+                self.save_scores()
+                await self.highrise.chat(f"🔄 {data['username']} skorunu sıfırladım!")
+                break
+        
+        if not found:
+            await self.highrise.chat(f"❌ {username} kullanıcısı bulunamadı!")
+
+    async def reset_all_scores(self):
+        """Tüm skorları sıfırla"""
+        for user_data in self.user_scores.values():
+            user_data["score"] = 0
+        self.save_scores()
+        await self.highrise.chat("🔄 TÜM SKORLAR SIFIRLANDI!")
+        await self.show_leaderboard()
+
     async def start_word_game(self):
         if self.game_active:
             await self.highrise.chat("⚠️ Oyun zaten devam ediyor!")
             return
 
+        if not self.words_database:
+            await self.highrise.chat("❌ Sorular yüklenemedi!")
+            return
+
         self.game_active = True
-        await self.highrise.chat("🎮 Yeni kelime oyunu başlıyor! Hazır olun...")
-        await asyncio.sleep(2)
+        await self.highrise.chat("🎮 ✨ YENİ OYUN BAŞLIYOR ✨")
+        await asyncio.sleep(1)
+        await self.highrise.chat("🚀 Hazır mısınız? 3...")
+        await asyncio.sleep(1)
+        await self.highrise.chat("🔥 2...")
+        await asyncio.sleep(1)
+        await self.highrise.chat("⚡ 1...")
+        await asyncio.sleep(1)
         await self.start_new_round()
 
     async def start_new_round(self):
         if not self.game_active:
+            self.game_active = True
+
+        if not self.words_database:
+            await self.highrise.chat("❌ Sorular bulunamadı!")
             return
 
-        # Select random word
-        word_data = random.choice(self.words_database)
-        self.current_word = word_data["word"]
-        self.current_hint = word_data["hint"]
+        # Random kelime seç (minimum 6 harf)
+        available_words = [w for w in self.words_database if len(w["kelime"]) >= 6]
+        if not available_words:
+            available_words = self.words_database
+
+        word_data = random.choice(available_words)
+        self.current_word = word_data["kelime"]
+        self.current_hint = word_data["ipucu"]
         self.revealed_letters = []
 
-        # Create initial display
+        # Başlangıç gösterimi
         word_display = "_" * len(self.current_word)
 
-        await self.highrise.chat(f"📝 İpucu: {self.current_hint}")
+        await self.highrise.chat("─" * 35)
+        await self.highrise.chat(f"💡 İpucu: {self.current_hint}")
+        await asyncio.sleep(1)
         await self.highrise.chat(f"🔤 Kelime: {' '.join(word_display)} ({len(self.current_word)} harf)")
+        await asyncio.sleep(1)
+        await self.highrise.chat("⏰ 5 saniyede bir harf açılacak!")
+        await self.highrise.chat("─" * 35)
 
-        # Start hint task
+        # İpucu sistemini başlat
         if self.hint_task:
             self.hint_task.cancel()
         self.hint_task = asyncio.create_task(self.give_hints())
@@ -142,15 +252,15 @@ class Bot(BaseBot):
     async def give_hints(self):
         try:
             hint_count = 0
-            max_hints = min(3, len(self.current_word) - 1)  # Maximum 3 hints or word length - 1
-
+            max_hints = min(4, len(self.current_word) - 2)
+            
             while hint_count < max_hints and self.game_active:
-                await asyncio.sleep(5)  # Wait 5 seconds
+                await asyncio.sleep(5)
 
                 if not self.game_active:
                     break
 
-                # Select a random position that hasn't been revealed
+                # Açılacak harf pozisyonu seç
                 available_positions = [i for i in range(len(self.current_word)) 
                                      if i not in self.revealed_letters]
 
@@ -158,7 +268,7 @@ class Bot(BaseBot):
                     pos = random.choice(available_positions)
                     self.revealed_letters.append(pos)
 
-                    # Create word display with revealed letters
+                    # Kelime görünümünü oluştur
                     word_display = ""
                     for i, letter in enumerate(self.current_word):
                         if i in self.revealed_letters:
@@ -169,25 +279,28 @@ class Bot(BaseBot):
                     await self.highrise.chat(f"💡 İpucu {hint_count + 1}: {' '.join(word_display)}")
                     hint_count += 1
 
-            # If no one guessed after all hints, reveal answer
+            # Hiç kimse bulamazsa cevabı ver
             if self.game_active:
-                await asyncio.sleep(5)
-                if self.game_active:  # Check again in case it was stopped
-                    await self.highrise.chat(f"⏰ Süre doldu! Cevap: {self.current_word.upper()}")
-                    await asyncio.sleep(3)
+                await asyncio.sleep(10)
+                if self.game_active:
+                    await self.highrise.chat("⏰ Süre doldu!")
+                    await asyncio.sleep(1)
+                    await self.highrise.chat(f"✅ Cevap: {self.current_word.upper()}")
+                    await asyncio.sleep(7)
                     await self.start_new_round()
 
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            print(f"Error in hint system: {e}")
+            print(f"❌ İpucu sisteminde hata: {e}")
 
     async def stop_word_game(self):
         self.game_active = False
         if self.hint_task:
             self.hint_task.cancel()
             self.hint_task = None
-        await self.highrise.chat("🛑 Kelime oyunu durduruldu!")
+        await self.highrise.chat("🛑 Oyun durduruldu!")
+        await asyncio.sleep(1)
         await self.show_leaderboard()
 
     async def show_leaderboard(self):
@@ -195,14 +308,25 @@ class Bot(BaseBot):
             await self.highrise.chat("📊 Henüz kimse puan kazanmadı!")
             return
 
-        # Sort users by score
+        # Skorlara göre sırala
         sorted_users = sorted(self.user_scores.items(), 
                             key=lambda x: x[1]["score"], reverse=True)
 
-        await self.highrise.chat("🏆 SKOR TABLOSU 🏆")
-        for i, (user_id, data) in enumerate(sorted_users[:5]):  # Top 5
-            position_emoji = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"][i]
-            await self.highrise.chat(f"{position_emoji} {data['username']}: {data['score']} puan")
+        await self.highrise.chat("🏆 ═══ SKOR TABLOSU ═══ 🏆")
+        
+        # İlk 5'i göster
+        rank_emojis = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+        
+        for i, (user_id, data) in enumerate(sorted_users[:5]):
+            emoji = rank_emojis[i] if i < 5 else f"{i+1}️⃣"
+            stars = "⭐" * min(data["score"] // 100, 5)  # Her 100 puan için bir yıldız
+            
+            score_text = f"{emoji} {data['username']}: {data['score']} puan {stars}"
+            await self.highrise.chat(score_text)
+            await asyncio.sleep(0.5)
+        
+        total_players = len([s for s in self.user_scores.values() if s["score"] > 0])
+        await self.highrise.chat(f"👥 Toplam {total_players} oyuncu yarışıyor!")
 
     async def on_whisper(self, user: User, message: str) -> None:
         if await self.is_user_allowed(user) and message.startswith(''):
@@ -225,7 +349,7 @@ class WebServer():
 
         @self.app.route('/')
         def index() -> str:
-            return "Word Game Bot Alive"
+            return "🎮 Gelişmiş Kelime Oyunu Botu Aktif! 🎮"
 
     def run(self) -> None:
         self.app.run(host='0.0.0.0', port=8080)
