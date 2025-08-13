@@ -84,7 +84,7 @@ class Bot(BaseBot):
         await self.start_word_game()
 
     async def on_user_join(self, user: User, position: Position | AnchorPosition) -> None:
-        await self.highrise.chat(f"🎉 Hoş geldin {user.username}! Kelime oyununa katıl!")
+        await self.highrise.chat(f"🎉 Hoş geldin @{user.username}! Kelime oyununa katıl!")
         if user.id not in self.user_scores:
             self.user_scores[user.id] = {"score": 0, "username": user.username}
             self.save_scores()
@@ -129,7 +129,7 @@ class Bot(BaseBot):
         if message == "!skor":
             user_score = self.user_scores[user.id]["score"]
             rank = self.get_user_rank(user.id)
-            await self.highrise.chat(f"📊 {user.username}: {user_score} puan (#{rank})")
+            await self.highrise.chat(f"📊 @{user.username}: {user_score} puan (#{rank})")
             return
 
         if message == "!skorlar":
@@ -142,18 +142,16 @@ class Bot(BaseBot):
             self.save_scores()
             
             rank = self.get_user_rank(user.id)
-            await self.highrise.chat(f"🎉 BRAVO {user.username}! ✨")
-            await asyncio.sleep(0.5)
-            await self.highrise.chat(f"✅ Doğru: {self.current_word.upper()}")
-            await asyncio.sleep(0.5)
+            await self.highrise.chat(f"🎉 BRAVO @{user.username}! ✨ Doğru: {self.current_word.upper()}")
+            await asyncio.sleep(1)
             await self.highrise.chat(f"📈 +20 puan! Toplam: {self.user_scores[user.id]['score']} (#{rank})")
             
-            # 15 saniye bekle, sonra yeni kelimeye geç
+            # 20 saniye bekle, sonra yeni kelimeye geç
             self.game_active = False
             if self.hint_task:
                 self.hint_task.cancel()
             
-            await asyncio.sleep(15)
+            await asyncio.sleep(20)
             await self.start_new_round()
 
         # Moderatör chat özelliği
@@ -181,7 +179,7 @@ class Bot(BaseBot):
                 data["score"] = 0
                 found = True
                 self.save_scores()
-                await self.highrise.chat(f"🔄 {data['username']} skorunu sıfırladım!")
+                await self.highrise.chat(f"🔄 @{data['username']} skorunu sıfırladım!")
                 break
         
         if not found:
@@ -240,8 +238,6 @@ class Bot(BaseBot):
         await self.highrise.chat(f"💡 İpucu: {self.current_hint}")
         await asyncio.sleep(1)
         await self.highrise.chat(f"🔤 Kelime: {' '.join(word_display)} ({len(self.current_word)} harf)")
-        await asyncio.sleep(1)
-        await self.highrise.chat("⏰ 5 saniyede bir harf açılacak!")
         await self.highrise.chat("─" * 35)
 
         # İpucu sistemini başlat
@@ -255,7 +251,7 @@ class Bot(BaseBot):
             max_hints = min(4, len(self.current_word) - 2)
             
             while hint_count < max_hints and self.game_active:
-                await asyncio.sleep(5)
+                await asyncio.sleep(10)
 
                 if not self.game_active:
                     break
@@ -281,12 +277,12 @@ class Bot(BaseBot):
 
             # Hiç kimse bulamazsa cevabı ver
             if self.game_active:
-                await asyncio.sleep(10)
+                await asyncio.sleep(15)
                 if self.game_active:
                     await self.highrise.chat("⏰ Süre doldu!")
                     await asyncio.sleep(1)
                     await self.highrise.chat(f"✅ Cevap: {self.current_word.upper()}")
-                    await asyncio.sleep(7)
+                    await asyncio.sleep(20)
                     await self.start_new_round()
 
         except asyncio.CancelledError:
@@ -312,21 +308,20 @@ class Bot(BaseBot):
         sorted_users = sorted(self.user_scores.items(), 
                             key=lambda x: x[1]["score"], reverse=True)
 
-        await self.highrise.chat("🏆 ═══ SKOR TABLOSU ═══ 🏆")
-        
         # İlk 5'i göster
         rank_emojis = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+        
+        leaderboard_text = "🏆 ═══ SKOR TABLOSU ═══ 🏆\n"
         
         for i, (user_id, data) in enumerate(sorted_users[:5]):
             emoji = rank_emojis[i] if i < 5 else f"{i+1}️⃣"
             stars = "⭐" * min(data["score"] // 100, 5)  # Her 100 puan için bir yıldız
-            
-            score_text = f"{emoji} {data['username']}: {data['score']} puan {stars}"
-            await self.highrise.chat(score_text)
-            await asyncio.sleep(0.5)
+            leaderboard_text += f"{emoji} @{data['username']}: {data['score']} puan {stars}\n"
         
         total_players = len([s for s in self.user_scores.values() if s["score"] > 0])
-        await self.highrise.chat(f"👥 Toplam {total_players} oyuncu yarışıyor!")
+        leaderboard_text += f"👥 Toplam {total_players} oyuncu yarışıyor!"
+        
+        await self.highrise.chat(leaderboard_text)
 
     async def on_whisper(self, user: User, message: str) -> None:
         if await self.is_user_allowed(user) and message.startswith(''):
