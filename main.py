@@ -22,7 +22,7 @@ class Bot(BaseBot):
         self.hint_task = None
         self.words_database = []
         self.saved_positions = {}
-        self.current_question_index = 0  # Sıralı soru takibi
+        self.asked_questions = []  # Sorulmuş soruları takip et
         self.load_questions()
         self.load_scores()
         self.load_positions()
@@ -152,8 +152,8 @@ class Bot(BaseBot):
                 return
                 
             if message == "!sorubaşla":
-                self.current_question_index = 0
-                await self.highrise.chat("🔄 Sorular başa alındı! Yeni oyun başlatılıyor...")
+                self.asked_questions = []
+                await self.highrise.chat("🔄 Sorular sıfırlandı! Yeni oyun başlatılıyor...")
                 await self.start_word_game()
                 return
 
@@ -190,7 +190,7 @@ class Bot(BaseBot):
             await self.highrise.chat("📊 !skor - Kendi skorunu gör")
             await self.highrise.chat("🏆 !skorlar - Skor tablosunu gör")
             await self.highrise.chat("✨ !gel - Botu yanına çağır (Mod)")
-            await self.highrise.chat("🔄 !sorubaşla - Soruları başa al (Mod)")
+            await self.highrise.chat("🔄 !sorubaşla - Soruları sıfırla (Mod)")
             await asyncio.sleep(0.5)
             await self.highrise.chat("💡 Doğru tahmin: +20 puan!")
             return
@@ -317,25 +317,29 @@ class Bot(BaseBot):
             await self.highrise.chat("❌ Sorular bulunamadı!")
             return
 
-        # Sıralı soru seçimi
-        if self.current_question_index >= len(self.words_database):
-            # Tüm sorular bittiyse başa dön
-            self.current_question_index = 0
-            await self.highrise.chat("🔄 Tüm sorular tamamlandı! Başa dönülüyor...")
+        # Rastgele soru seçimi (tekrar etmeyecek şekilde)
+        available_questions = [i for i in range(len(self.words_database)) if i not in self.asked_questions]
+        
+        # Eğer tüm sorular sorulmuşsa listeyi sıfırla
+        if not available_questions:
+            self.asked_questions = []
+            available_questions = list(range(len(self.words_database)))
+            await self.highrise.chat("🔄 Tüm sorular tamamlandı! Yeni tur başlıyor...")
             await asyncio.sleep(2)
 
-        word_data = self.words_database[self.current_question_index]
+        # Rastgele soru seç
+        question_index = random.choice(available_questions)
+        self.asked_questions.append(question_index)
+        
+        word_data = self.words_database[question_index]
         self.current_word = word_data["kelime"]
         self.current_hint = word_data["ipucu"]
         self.revealed_letters = []
-        
-        # Bir sonraki soru için index'i artır
-        self.current_question_index += 1
 
         # Başlangıç gösterimi
         word_display = "_" * len(self.current_word)
 
-        await self.highrise.chat(f"📝 Soru {self.current_question_index}/{len(self.words_database)}")
+        await self.highrise.chat(f"📝 Soru {len(self.asked_questions)}/{len(self.words_database)}")
         await asyncio.sleep(0.5)
         await self.highrise.chat(f"💡 İpucu: {self.current_hint}")
         await asyncio.sleep(0.5)
